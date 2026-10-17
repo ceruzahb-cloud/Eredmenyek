@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FociEredmények.hu – Élő</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+  body { background: #0b3d2e; }
+  header { background: #0d4f38; color: white; padding: 20px; text-align: center; }
+  header h1 { font-size: 30px; }
+  header span { color: #ffcc00; }
+  .live-badge { display: inline-block; background: #e63946; color: white; padding: 4px 12px;
+                border-radius: 20px; font-size: 13px; margin-top: 8px; }
+  .live-badge::before { content: "● "; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  main { max-width: 900px; margin: 20px auto; padding: 10px; }
+  .league { background: white; border-radius: 10px; margin-bottom: 25px; overflow: hidden;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3); }
+  .league-header { background: #1a6b4a; color: white; padding: 12px 20px; font-size: 18px;
+                   display: flex; justify-content: space-between; }
+  .match { display: grid; grid-template-columns: 1fr 100px 1fr 70px;
+           align-items: center; padding: 12px 20px; border-bottom: 1px solid #eee; }
+  .match:hover { background: #f2f9f5; }
+  .home, .away { font-weight: bold; }
+  .home { text-align: right; }
+  .away { text-align: left; }
+  .score { background: #0d4f38; color: white; padding: 6px 14px; border-radius: 6px;
+           text-align: center; font-weight: bold; }
+  .status { text-align: center; font-size: 12px; color: #777; }
+  .status.live { color: #e63946; font-weight: bold; }
+  .loading, .error { text-align: center; padding: 40px; color: white; font-size: 18px; }
+  .updated { text-align: center; color: #9fd4b8; font-size: 13px; padding: 10px; }
+  footer { text-align: center; padding: 20px; color: #9fd4b8; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚽ Foci<span>Eredmények</span>.hu</h1>
+  <div class="live-badge">ÉLŐ EREDMÉNYEK</div>
+</header>
+
+<main>
+  <div class="loading" id="loading">⏳ Eredmények betöltése...</div>
+  <div id="content"></div>
+  <div class="updated" id="updated"></div>
+</main>
+
+<footer>© 2025 FociEredmények.hu – Adatok: football-data.org</footer>
+
+<script>
+// ⬇️ IDE ÍRD BE A SAJÁT API KULCSODAT! ⬇️
+const API_KEY = fb9f9c58c6df4928a062ca07a0148a59;
+
+// Bajnokok Ligája + Premier League + La Liga
+const LEAGUES = ["CL", "PL", "PD"];
+
+async function toltoEredmenyek() {
+  const content = document.getElementById("content");
+  let html = "";
+  let siker = 0;
+
+  for (const liga of LEAGUES) {
+    try {
+      const valasz = await fetch(
+        `https://api.football-data.org/v4/competitions/${liga}/matches?status=FINISHED,IN_PLAY`,
+        { headers: { "X-Auth-Token": API_KEY } }
+      );
+      if (!valasz.ok) throw new Error("Hiba");
+      const adat = await valasz.json();
+      siker++;
+
+      const ligaNevek = { CL: "🏆 Bajnokok Ligája", PL: "🏆 Premier League", PD: "🏆 La Liga" };
+      html += `<div class="league">
+        <div class="league-header">${ligaNevek[liga]}</div>`;
+
+      for (const meccs of adat.matches.slice(0, 8)) {
+        const hati = new Date(meccs.utcDate).toLocaleDateString("hu-HU");
+        const elso = meccs.score.fullTime.home ?? "-";
+        const masodik = meccs.score.fullTime.away ?? "-";
+        const statusz = meccs.status === "IN_PLAY" ? "ÉLŐ" : hati;
+        html += `<div class="match">
+          <div class="home">${meccs.homeTeam.shortName}</div>
+          <div class="score">elso–{elso} –elso–{masodik}</div>
+          <div class="away">${meccs.awayTeam.shortName}</div>
+          <div class="status meccs.status==="INPLAY"?"live":""">{meccs.status === "IN_PLAY" ? "live" : ""}">meccs.status==="INP​LAY"?"live":""">{statusz}</div>
+        </div>`;
+      }
+      html += `</div>`;
+    } catch (e) { /* ha egy liga hibás, továbblépünk */ }
+  }
+
+  document.getElementById("loading").style.display = "none";
+  content.innerHTML = siker > 0 ? html :
+    `<div class="error">❌ Nem sikerült betölteni.<br>Ellenőrizd az API kulcsot!</div>`;
+  document.getElementById("updated").textContent =
+    "Frissítve: " + new Date().toLocaleTimeString("hu-HU");
+}
+
+// Első betöltés + automatikus frissítés 60 másodpercenként
+toltoEredmenyek();
+setInterval(toltoEredmenyek, 60000);
+</script>
+
+</body>
+</html>
